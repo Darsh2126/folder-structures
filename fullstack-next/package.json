@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@prisma/extension-accelerate": "^2.0.2",
+    "bcrypt": "^6.0.0",
     "next": "15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -17,6 +19,7 @@
     "@eslint/eslintrc": "^3",
     "@prisma/client": "^6.11.1",
     "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^5.0.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
