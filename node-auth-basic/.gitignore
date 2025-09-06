@@ -1,0 +1,21 @@
+# Node.js
+node_modules/
+dist/
+.env
+.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# TypeScript
+*.tsbuildinfo
