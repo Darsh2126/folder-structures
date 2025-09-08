@@ -1,0 +1,74 @@
+{
+  "name": "scaffy-temp",
+  "version": "1.0.1",
+  "description": "A CLI tool to scaffold project folder structures from predefined templates",
+  "main": "dist/index.js",
+  "bin": {
+    "scaffy-temp": "./dist/cli.js",
+    "cfs": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "scaffolding",
+    "template",
+    "folder-structure",
+    "cli",
+    "boilerplate",
+    "generator"
+  ],
+  "author": {
+    "name": "Darsh Gajdhar",
+    "email": "darsh2126gajdhar@gmail.com",
+    "url": "https://github.com/Darsh2126"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Darsh2126/folder-structures.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Darsh2126/folder-structures/issues"
+  },
+  "homepage": "https://github.com/Darsh2126/folder-structures#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "degit": "^2.3.0",
+    "fs-extra": "^11.1.0",
+    "inquirer": "^9.2.0",
+    "mustache": "^4.2.0",
+    "node-fetch": "^2.6.12",
+    "ora": "^5.4.1",
+    "tar": "^6.1.15"
+  },
+  "devDependencies": {
+    "@types/degit": "^2.8.6",
+    "@types/fs-extra": "^11.0.0",
+    "@types/inquirer": "^9.0.0",
+    "@types/mustache": "^4.2.0",
+    "@types/node": "^20.0.0",
+    "@types/node-fetch": "^2.6.13",
+    "@types/tar": "^6.1.13",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
