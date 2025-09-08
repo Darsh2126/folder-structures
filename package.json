@@ -13,7 +13,9 @@
     "prepublishOnly": "npm run build",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "postbuild": "echo '#!/usr/bin/env node' | cat dist/cli.js > temp && mv temp dist/cli.js && chmod +x dist/cli.js",
+    "postinstall": "node dist/cli.js"
   },
   "keywords": [
     "scaffolding",
