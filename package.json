@@ -2,7 +2,6 @@
   "name": "scaffy-temp",
   "version": "1.0.5",
   "description": "A CLI tool to scaffold project folder structures from predefined templates",
-  "main": "dist/index.js",
   "bin": {
     "scaffy-temp": "./dist/cli.js",
     "cfs": "./dist/cli.js"
