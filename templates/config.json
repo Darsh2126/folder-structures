@@ -1,0 +1,8 @@
+{
+  "templates": [
+    { "name": "fullstack-next", "description": "Next.js + TypeScript fullstack app" },
+    { "name": "next-normal-auth", "description": "Normal Auth using NextJS" },
+    { "name": "node-auth-basic", "description": "Express + JWT auth starter" },
+    { "name": "react-ts-tailwind-rtk-wrapper", "description": "RTK Wrapper using VITE Tailwind" }
+  ]
+}
