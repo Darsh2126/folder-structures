@@ -1,0 +1,15 @@
+{
+  "tag": "auth",
+  "label": "Authentication (NextAuth / Clerk)",
+  "targets": ["nextjs-app-router", "nextjs-pages-router"],
+  "injects_into": "src/wrappers/auth/",
+  "root_files": ["auth.config.ts"],
+  "needs": ["zod"],
+  "conflicts": [],
+  "packages": {
+    "dependencies": ["next-auth", "@auth/core"],
+    "devDependencies": []
+  },
+  "env_vars": ["AUTH_SECRET=your-secret-key", "AUTH_URL=http://localhost:3000"],
+  "version": "1.0.0"
+}

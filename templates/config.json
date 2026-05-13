@@ -1,8 +1,7 @@
 {
   "templates": [
-    { "name": "fullstack-next", "description": "Next.js + TypeScript fullstack app" },
-    { "name": "next-normal-auth", "description": "Normal Auth using NextJS" },
-    { "name": "node-auth-basic", "description": "Express + JWT auth starter" },
-    { "name": "react-ts-tailwind-rtk-wrapper", "description": "RTK Wrapper using VITE Tailwind" }
+    { "name": "nextjs-app-router", "description": "Next.js 15 (App Router) + Tailwind v4 + TypeScript" },
+    { "name": "react-vite", "description": "Vite 6 + React 19 + Tailwind v4 + TypeScript" },
+    { "name": "node-express", "description": "Express 5 + TypeScript base" }
   ]
 }

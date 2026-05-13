@@ -1,0 +1,15 @@
+{
+  "tag": "drizzle",
+  "label": "Drizzle ORM Wrapper",
+  "targets": ["nextjs-app-router", "nextjs-pages-router", "node-express", "node-nestjs"],
+  "injects_into": "src/wrappers/drizzle/",
+  "root_files": ["drizzle.config.ts"],
+  "needs": ["zod"],
+  "conflicts": ["prisma"],
+  "packages": {
+    "dependencies": ["drizzle-orm", "postgres"],
+    "devDependencies": ["drizzle-kit"]
+  },
+  "env_vars": ["DATABASE_URL=postgresql://user:password@localhost:5432/dbname"],
+  "version": "1.0.0"
+}

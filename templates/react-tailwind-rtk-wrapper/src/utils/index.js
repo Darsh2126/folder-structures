@@ -1,1 +1,0 @@
-export const dg = 'Hello'
