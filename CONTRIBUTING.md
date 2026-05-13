@@ -511,3 +511,529 @@ rm -rf /tmp/test-*
 | Putting application code in `_root/` | `_root/` is ONLY for files that MUST be at the project root (config files, CLI tool expectations) |
 | Forgetting to run `npm run build` | Always build to verify TypeScript compilation |
 | Adding `node_modules` or secrets to the wrapper | Never — wrappers are source code only |
+
+---
+
+## Linting — Handling Issues in Generated Projects
+
+When a user scaffolds a project with your wrapper, the injected code may trigger ESLint/TS warnings. Here's what causes them and how to prevent them.
+
+### Common Linting Issues
+
+#### 1. `.js` Extension in Imports
+
+```
+# User runs eslint on scaffolded project
+Error: Unexpected use of file extension ".js" for "./client.js"
+```
+
+**Why it happens:** Wrapper code uses `.js` extensions in imports (required for ESM). Some ESLint configs (especially Next.js default) flag this.
+
+**Fix:** Add this rule to the wrapper code or document it in the README:
+
+```json
+// In the user's project .eslintrc or eslint.config:
+{
+  "rules": {
+    "import/extensions": ["error", "ignorePackages", { "js": "always" }]
+  }
+}
+```
+
+**Better fix:** The base templates should already account for this. If a base template uses ESLint rules that ban `.js` extensions, the wrapper's `README.md` should note this.
+
+#### 2. Unused Imports (After Removing Boilerplate)
+
+**Why it happens:** Some wrapper files export types/functions that may not be used immediately.
+
+**Fix:** Structure wrapper code so that the barrel export (`index.ts`) only exports what's immediately needed. If something might be unused, wrap it behind a clear comment:
+
+```typescript
+// index.ts — only export what's needed by the user
+export { db } from "./client.js";  // Used immediately
+// export { seed } from "./seed.js";  // Uncomment when ready for seeding
+```
+
+#### 3. `@typescript-eslint/no-unused-vars`
+
+**Why it happens:** Schema definitions or config objects may declare variables that ESLint sees as unused.
+
+**Fix:** Use `_` prefix for intentionally unused parameters, or use `export` on schema objects:
+
+```typescript
+// ✅ Export schema objects — they're used by other files via import
+export const users = pgTable("users", { ... });
+```
+
+#### 4. TypeScript `strict` Mode Violations
+
+**Why it happens:** If a base template has `strict: true` in `tsconfig.json`, wrapper code must be fully typed.
+
+**Fix:** Always add explicit types. Never use `any`:
+
+```typescript
+// ❌ Avoid
+export function getClient(config: any) { ... }
+
+// ✅ Always type explicitly
+export function getClient(config: DbConfig) { ... }
+```
+
+#### 5. Undefined Variable / Missing Import (Deps Not Installed)
+
+**Why it happens:** The wrapper references `zod`, `drizzle-orm`, etc. but deps haven't been installed yet.
+
+**Fix:** The CLI prompts to install deps. If the user skips install, the linter will flag missing imports. This is expected — install fixes it.
+
+### Pre-Commit Lint Check for Wrapper Code
+
+Before submitting a wrapper, lint-check the files yourself:
+
+```bash
+# Copy your wrapper files into a real Next.js/Vite/Express project
+# that has ESLint configured, then run lint:
+
+cd test-project
+npx eslint src/wrappers/<tag>/  # Check for issues
+npx tsc --noEmit                 # Check for TS errors
+```
+
+### Option: Skip Lint for Generated Wrapper Code
+
+If the base template uses ESLint and you don't want wrapper code to trigger warnings, recommend adding this to the generated project's `.eslintignore`:
+
+```
+src/wrappers/
+```
+
+Alternatively, the CLI can auto-generate a `.eslintignore` entry. This is not implemented yet, but the `_root/` pattern could be extended for it.
+
+### Wrapper Code Lint Checklist
+
+- [ ] No `any` types
+- [ ] All exports are named (not default)
+- [ ] No unused variables or imports
+- [ ] All async functions have proper error handling
+- [ ] `.js` extensions used in all relative imports
+- [ ] Run `npm run build` in the CLI project — no errors
+- [ ] Run `tsc --noEmit` in a scaffolded project with the wrapper — no TS errors
+
+---
+
+## Distribution — Publishing the CLI to npm
+
+The CLI is currently published as `scaffy-temp` on npm. This section covers how to publish updates and how distribution works.
+
+### How the CLI Locates Wrappers at Runtime
+
+The CLI finds `templates/` and `wrappers/` by searching relative to the running script via `findRepoRoot()`:
+
+```typescript
+function findRepoRoot(): string {
+  const candidates = [
+    path.resolve(__dirname, ".."),
+    path.resolve(__dirname, "..", ".."),
+    path.resolve(__dirname, "..", "..", ".."),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, "templates"))) {
+      return candidate;
+    }
+  }
+  return path.resolve(__dirname, "..");
+}
+```
+
+This works in two scenarios:
+
+| Scenario | `__dirname` | Found at |
+|---|---|---|
+| Running from local clone | `dist/cli/` or `cli/` | `../../templates` (project root) |
+| Installed via npm | `node_modules/scaffy-temp/dist/cli/` | `../../../templates` (inside package) |
+
+### Publishing Workflow
+
+#### 1. Update `package.json` Fields
+
+```bash
+# Bump version
+npm version patch  # or minor, or major
+```
+
+#### 2. Update the `files` Array
+
+The `files` array in `package.json` controls what gets published to npm. The CLI needs both `templates/` and `wrappers/` at runtime, so they must be included:
+
+```json
+{
+  "files": [
+    "dist",
+    "templates",
+    "wrappers",
+    "README.md",
+    "LICENSE"
+  ]
+}
+```
+
+**Without `templates` and `wrappers` in `files`**, the published package won't include them, and `findRepoRoot()` will fail to find them.
+
+#### 3. Build
+
+```bash
+npm run build
+```
+
+#### 4. Dry-Run Publish (Optional)
+
+Check what will be published:
+
+```bash
+npm pack --dry-run
+```
+
+Verify that `templates/` and `wrappers/` appear in the list of files to be included.
+
+#### 5. Publish
+
+```bash
+npm publish
+```
+
+### Two Distribution Modes
+
+#### Mode A: npm Package (Recommended for Most Users)
+
+```
+npm install -g scaffy-temp
+scaffy-temp init my-app -b nextjs-app-router -w zod drizzle
+```
+
+**Pros:** Familiar workflow, no clone needed, versioned releases.
+**Cons:** Package size includes all templates and wrappers. Each publish requires a version bump.
+
+#### Mode B: Direct from Clone (For Development/Testing)
+
+```
+git clone https://github.com/Darsh2126/folder-structures.git
+cd folder-structures
+npm install
+npm run build
+node dist/src/cli.js init my-app -b nextjs-app-router -w zod drizzle
+```
+
+**Pros:** No publish needed, instant iteration, user always has latest.
+**Cons:** Requires a git clone, more steps.
+
+### What Gets Published
+
+After `npm publish`, users get:
+
+```
+node_modules/scaffy-temp/
+  dist/
+    cli/index.js       ← CLI logic
+    src/cli.js         ← entry point (shebang)
+  templates/
+    nextjs-app-router/ ← bare scaffolds
+    react-vite/
+    node-express/
+    config.json
+  wrappers/
+    zod-wrapper/       ← composable chunks
+    drizzle-wrapper/
+    auth-wrapper/
+    rhf-wrapper/
+  package.json
+  README.md
+  LICENSE
+```
+
+The `findRepoRoot()` function walks up from `node_modules/scaffy-temp/dist/cli/index.js` and finds `templates/` inside the package directory. This works because npm preserves the package directory structure.
+
+### Version Strategy
+
+| Version | When |
+|---|---|
+| `2.0.x` | Bug fixes, non-breaking wrapper additions |
+| `2.x.0` | New CLI features (breaking wrapper additions) |
+| `3.0.0` | Breaking CLI API changes |
+
+Wrapper versions are tracked in `wrapper.json` and recorded in `scaffold.lock` — they're independent of the CLI version.
+
+### Distribution Checklist
+
+- [ ] `npm run build` succeeds
+- [ ] `npm pack --dry-run` shows `templates/` and `wrappers/` included
+- [ ] `files` array in `package.json` includes `"templates"` and `"wrappers"`
+- [ ] Version bumped appropriately
+- [ ] Test install locally: `npm install -g .` then run `scaffy-temp init`
+- [ ] No secrets or large unnecessary files in the package
+
+---
+
+## File-by-File Reference — What Each File Does
+
+### Root Level
+
+| File | Role |
+|---|---|
+| `package.json` | Package registry. Defines `bin` (CLI entry), `scripts`, `dependencies`, and `files` (what gets published to npm) |
+| `tsconfig.json` | TypeScript compiler config. `rootDir: "."` and `include: ["src", "cli"]` — compiles both `src/` and `cli/` into `dist/` |
+| `PLANNING.md` | Architecture reference doc — high-level design decisions |
+| `CONTRIBUTING.md` | How-to guide — add wrappers, test, lint, distribute (this file) |
+
+---
+
+### `src/cli.ts` — Entry Stub
+
+**Purpose:** The file that `package.json` `"bin"` points to. Just re-exports to the real CLI:
+
+```typescript
+#!/usr/bin/env node
+import "../cli/index.js";
+```
+
+The real code lives in `cli/`. This file exists as a stable entry point so the `bin` field doesn't need to change.
+
+---
+
+### `cli/` — CLI Logic (The Brain)
+
+#### `cli/index.ts` — Main Orchestrator
+
+**Purpose:** Wires everything together. Defines two commands (`init` and `add`) using `commander`.
+
+| Internal function | What it does |
+|---|---|
+| `findRepoRoot()` | Walks up directories from the running script to find the project root (where `templates/` lives). Works both from `dist/` (compiled) and from source. |
+| `getBases()` | Scans `templates/` directory + reads `config.json` for descriptions. Returns `BaseTemplate[]`. |
+| `getAvailableWrappers()` | Scans `wrappers/` directory, reads each `wrapper.json`. Returns `WrapperManifest[]`. |
+
+**`init` command — step by step:**
+
+| Step | What happens | CLI module used |
+|---|---|---|
+| 1 | User picks a base template (or `-b` flag) | `prompt.ts` → `pickBase()` |
+| 2 | User picks wrappers — incompatible ones greyed out | `prompt.ts` → `pickWrappers()` |
+| 3 | Dependencies resolved, conflicts checked | `resolver.ts` → `resolveWrappers()` |
+| 4 | Base template copied to project directory | `injector.ts` → `copyBaseTemplate()` |
+| 5 | Each wrapper's `_files/` copied into project | `injector.ts` → `injectFiles()` |
+| 6 | Each wrapper's `_root/` copied with collision check | `injector.ts` → `injectRootFiles()` |
+| 7 | Missing npm deps added to `package.json` | `merger.ts` → `mergePackageJson()` |
+| 8 | Missing env vars appended to `.env.example` | `merger.ts` → `mergeEnvExample()` |
+| 9 | `scaffold.lock` written | `merger.ts` → `writeLockFile()` |
+| 10 | User prompted to run `npm install` | `merger.ts` → `printInstallCommand()` |
+
+**`add` command — step by step:**
+
+| Step | What happens | CLI module used |
+|---|---|---|
+| 1 | Reads existing `scaffold.lock` | Direct `fs.readJson` |
+| 2 | Resolves deps including existing wrappers (avoids re-adding) | `resolver.ts` → `resolveWrappers()` |
+| 3 | Only injects NEW wrappers (not already in lockfile) | `injector.ts` → `injectWrapper()` |
+| 4 | Merges package.json + .env for new wrappers only | `merger.ts` |
+| 5 | Updates scaffold.lock | `merger.ts` → `writeLockFile()` |
+
+#### `cli/types.ts` — Shared Type Definitions
+
+**Purpose:** The contract layer. Every other CLI module imports from here.
+
+| Type | Purpose |
+|---|---|
+| `WrapperJson` | Shape of `wrapper.json` on disk (tag, label, targets, needs, conflicts, packages, env_vars, version) |
+| `WrapperManifest` | In-memory version — adds computed fields: `filesDir`, `rootDir`, `wrapperJsonPath` |
+| `ScaffoldLock` | Shape of `scaffold.lock` written to user's project |
+| `BaseTemplate` | Describes a template (name, label, dir) |
+| `CliOptions` | Flags collected from CLI args |
+
+**When adding a new field to `wrapper.json`**, add it to `WrapperJson` first. TypeScript will flag every place that uses it.
+
+#### `cli/resolver.ts` — Dependency Resolver
+
+**Purpose:** Pure logic — no file I/O. Two responsibilities:
+
+1. **Dependency resolution (BFS):**
+   - Takes requested wrapper tags + all available wrappers
+   - For each wrapper, checks its `needs` array
+   - Auto-adds missing dependencies using a breadth-first queue
+   - Uses a `visited` set to prevent infinite loops
+
+2. **Conflict detection:**
+   - Pairs every selected wrapper
+   - Checks their `conflicts` arrays against each other
+   - If A conflicts with B (or vice versa) → pushes an error
+
+Returns:
+```typescript
+{
+  selected: WrapperManifest[]   // Final list (requested + auto-added deps)
+  errors: string[]               // Fatal — stop the process
+  warnings: string[]             // Non-fatal — show but continue
+}
+```
+
+#### `cli/injector.ts` — File Copier
+
+**Purpose:** The only module that actually writes files to disk.
+
+| Function | Source | Destination | Called by |
+|---|---|---|---|
+| `injectFiles()` | `_files/` contents (as-is, relative) | `projectDir/` → mirrors `_files/` structure | `injectWrapper()` |
+| `injectRootFiles()` | `_root/` contents (flat files) | `projectDir/` (directly, no prefix) | `injectWrapper()` |
+| `copyBaseTemplate()` | `templates/<base>/` | `projectDir/` | `init` command |
+
+**`handleRootFile()`** implements the collision table:
+
+| Situation | Behaviour |
+|---|---|
+| Target doesn't exist | Copy directly, no prompt |
+| `scaffold.lock` shows it's from this wrapper | Skip silently (idempotent) |
+| Target exists, unknown origin | Prompt user: overwrite / skip / merge |
+
+#### `cli/merger.ts` — Package + Env + Lock Merging
+
+**Purpose:** Non-destructive merging. Never overwrites existing data.
+
+| Function | What it does |
+|---|---|
+| `mergePackageJson()` | Reads project's `package.json`. For each wrapper, adds missing deps at version `"latest"`. Never downgrades or removes existing entries. |
+| `mergeEnvExample()` | Reads `.env.example`. For each wrapper's `env_vars`, checks if the key prefix already exists. Appends new vars under `# --- <tag>-wrapper ---` comment. |
+| `printInstallCommand()` | Collects all unique deps, prints them, asks user to run `npm install` now or prints the command |
+| `writeLockFile()` | Writes `scaffold.lock` with base name + wrapper list (tag + version) + timestamp |
+
+#### `cli/prompt.ts` — Interactive Prompts
+
+**Purpose:** Wraps `inquirer` behind descriptive function names.
+
+| Function | What user sees | Notes |
+|---|---|---|
+| `pickBase()` | List of base templates | One choice |
+| `pickWrappers()` | Checkbox list of wrappers | Incompatible ones are greyed out (`disabled: true`) |
+| `askProjectName()` | Text input | Regex validation: `a-zA-Z0-9-_` |
+| `askInstallConfirmation()` | Y/n prompt | Shows the full install command |
+| `askRootFileAction()` | List: overwrite / skip / merge | Only shown when root file already exists |
+
+---
+
+### `templates/` — Base Scaffolds
+
+These are **bare project shells** — no auth, no ORM, no form libraries.
+
+| File / Directory | Purpose |
+|---|---|
+| `templates/config.json` | Registry mapping template names to descriptions for CLI prompts |
+| `templates/nextjs-app-router/` | Next.js 15 + Tailwind v4 + TypeScript — just the framework shell |
+| `templates/react-vite/` | Vite 6 + React 19 + Tailwind v4 + TypeScript — just the framework shell |
+| `templates/node-express/` | Express 5 + TypeScript — just the framework shell |
+
+Each template has its own `package.json`, `tsconfig.json`, and framework-specific config files. They have **zero integration code** (no Prisma, no auth, no forms) — all integrations come from wrappers.
+
+---
+
+### `wrappers/` — Composable Integration Chunks
+
+Every wrapper follows this exact pattern:
+
+```
+wrappers/<tag>-wrapper/
+  _files/          ← code that lands in user's project
+    src/
+      wrappers/<tag>/
+        index.ts   ← barrel export (MUST have this)
+        ...
+  _root/           ← files that MUST be at project root (optional)
+    <config-file>
+  wrapper.json     ← metadata
+  README.md        ← "wire it up" guide
+```
+
+#### `wrappers/zod-wrapper/` — Simplest (leaf dep)
+
+| File | What it does |
+|---|---|
+| `wrapper.json` | tag: `zod`, targets: `*`, needs: `[]`, conflicts: `[]` |
+| `_files/.../index.ts` | Barrel export — re-exports from schemas.ts and types.ts |
+| `_files/.../schemas.ts` | Reusable Zod schemas (email, password, UUID, pagination) |
+| `_files/.../types.ts` | Zod utility types (ZodInfer, ZodInput, ZodOutput) |
+| `README.md` | Wire-it-up instructions |
+
+Why it exists: Most other wrappers depend on it. It's the leaf node in the dependency graph.
+
+#### `wrappers/drizzle-wrapper/` — Demonstrates `_root/`
+
+| File | What it does |
+|---|---|
+| `_files/.../index.ts` | Barrel export |
+| `_files/.../client.ts` | `postgres-js` connection singleton, exports `db` |
+| `_files/.../schema.ts` | Base `pgTable` definitions (users table with timestamps) |
+| `_root/drizzle.config.ts` | Drizzle config pointing to the wrapper's schema path |
+| `wrapper.json` | needs: `["zod"]`, conflicts: `["prisma"]` |
+
+Why `_root/` exists: Drizzle CLI (`drizzle-kit`) expects `drizzle.config.ts` at the project root, not inside `src/`.
+
+#### `wrappers/auth-wrapper/` — NextAuth Integration
+
+| File | What it does |
+|---|---|
+| `_files/.../index.tsx` | Barrel export |
+| `_files/.../provider.tsx` | `SessionProvider` — client component wrapping the app |
+| `_files/.../config.ts` | NextAuth config with Credentials provider + Zod validation |
+| `_files/.../types.ts` | Augments `next-auth` Session type to include `user.id` |
+| `_root/auth.config.ts` | Creates NextAuth handler (exports handlers, auth, signIn, signOut) |
+| `wrapper.json` | targets: nextjs only, needs: `["zod"]` |
+
+#### `wrappers/rhf-wrapper/` — React Hook Form + Zod
+
+| File | What it does |
+|---|---|
+| `_files/.../index.ts` | Barrel export |
+| `_files/.../useFormWrapper.ts` | `useZodForm` hook — wraps `useForm` with `zodResolver` pre-configured |
+| `_files/.../FormField.tsx` | Controlled input component with label + error display |
+| `_files/.../types.ts` | Helper types (ZodFormReturn, FormValues) |
+| `wrapper.json` | targets: nextjs + react, needs: `["zod"]` |
+
+---
+
+### `scaffold.lock` — Generated Output (Not in Repo)
+
+**Purpose:** Records what was scaffolded — enables idempotent `add` commands and reproducible builds.
+
+```json
+{
+  "base": "nextjs-app-router",
+  "wrappers": [
+    { "tag": "drizzle", "version": "1.0.0" },
+    { "tag": "auth", "version": "1.0.0" }
+  ],
+  "scaffoldedAt": "2026-05-13T00:00:00Z"
+}
+```
+
+Used by:
+- `injector.ts` — to know if a root file already belongs to a wrapper (skip if so)
+- `add` command — to know what's already installed (only inject new ones)
+
+---
+
+### Summary — How to Think About the System
+
+```
+src/cli.ts         →  The door (just a re-export)
+cli/index.ts      →  The conductor (orchestrates everything)
+cli/types.ts      →  The vocabulary (shared types)
+cli/resolver.ts   →  The librarian (knows deps and conflicts)
+cli/injector.ts   →  The mover (copies files)
+cli/merger.ts     →  The editor (merges json/env safely)
+cli/prompt.ts     →  The receptionist (asks user questions)
+
+templates/*/      →  Bare rooms (empty framework shells)
+wrappers/*/       →  Furniture boxes (assembly instructions in wrapper.json)
+
+scaffold.lock     →  The receipt (what was installed)
+```
+
+**When adding a new integration:**
+- **New library** → create a wrapper in `wrappers/` — no CLI changes needed
+- **New framework** → create a base template in `templates/` + update `config.json` + update wrapper targets
+- **New CLI feature** → modify files inside `cli/`
