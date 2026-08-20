@@ -1,10 +1,10 @@
 {
   "name": "scaffy-temp",
-  "version": "2.0.0",
-  "description": "A CLI tool to scaffold project templates with composable wrappers",
+  "version": "1.0.6",
+  "description": "A CLI tool to scaffold project folder structures from predefined templates",
   "bin": {
-    "scaffy-temp": "./dist/src/cli.js",
-    "cfs": "./dist/src/cli.js"
+    "scaffy-temp": "./dist/cli.js",
+    "cfs": "./dist/cli.js"
   },
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
-    "postbuild": "chmod +x dist/src/cli.js dist/cli/index.js"
+    "postbuild": "echo '#!/usr/bin/env node' | cat dist/cli.js > temp && mv temp dist/cli.js && chmod +x dist/cli.js"
   },
   "keywords": [
     "scaffolding",
@@ -22,8 +22,7 @@
     "folder-structure",
     "cli",
     "boilerplate",
-    "generator",
-    "wrappers"
+    "generator"
   ],
   "author": {
     "name": "Darsh Gajdhar",
@@ -47,13 +46,22 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
+    "degit": "^2.3.0",
     "fs-extra": "^11.1.0",
-    "inquirer": "^9.2.0"
+    "inquirer": "^9.2.0",
+    "mustache": "^4.2.0",
+    "node-fetch": "^2.6.12",
+    "ora": "^5.4.1",
+    "tar": "^6.1.15"
   },
   "devDependencies": {
+    "@types/degit": "^2.8.6",
     "@types/fs-extra": "^11.0.0",
     "@types/inquirer": "^9.0.0",
+    "@types/mustache": "^4.2.0",
     "@types/node": "^20.0.0",
+    "@types/node-fetch": "^2.6.13",
+    "@types/tar": "^6.1.13",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.45.0",
