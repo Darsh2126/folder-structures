@@ -41,8 +41,6 @@
   "homepage": "https://github.com/Darsh2126/folder-structures#readme",
   "files": [
     "dist",
-    "templates",
-    "wrappers",
     "README.md",
     "LICENSE"
   ],
