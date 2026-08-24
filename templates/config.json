@@ -19,6 +19,10 @@
     {
       "name": "next-tanstack-rhf-wrapper",
       "description": "Next.js + TanStack + RHF Wrapper"
+    },
+    {
+      "name": "node-express-mongo-wrapper",
+      "description": "Node Express Mongo Wrapper"
     }
   ]
 }
